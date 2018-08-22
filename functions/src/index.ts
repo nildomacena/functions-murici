@@ -4,20 +4,29 @@ admin.initializeApp();
 // Start writing Firebase Functions
 // https://firebase.google.com/docs/functions/typescript
 
-export const onInsertSorteio = functions.database.ref('sorteios').onUpdate(change => {
-    const after = change.after.val()
-    console.log("novo sorteio")
+export const onInsertSorteio = functions.database.ref('sorteios/{pushId}').onCreate(change => {
+    const after = change.val()
+    console.log("novo sorteio", after);
     const payload = {
         data: {
-            nome: "after.texto",
-            estabelecimento: "after.estabelecimento"
+            texto: after.texto,
+            estabelecimento: after.estabelecimento,
+            titulo: after.titulo
         }
     }
     const message: admin.messaging.Message = {
         topic: 'sorteios',
+        android:{
+            priority: 'high'
+        },
         notification: {
-            body: 'payload.data.nome',
-            title: 'payload.data.estabelecimento'
+            body: payload.data.texto,
+            title: payload.data.estabelecimento
+        },
+        data: {
+            texto: payload.data.texto,
+            estabelecimento: after.estabelecimentoNome,
+            titulo: payload.data.titulo 
         }
     }
     //const message:string = "Testando "+payload.data.nome;
