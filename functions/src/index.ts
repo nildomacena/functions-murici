@@ -6,7 +6,6 @@ admin.initializeApp();
 
 export const onInsertSorteio = functions.database.ref('sorteios/{pushId}').onCreate(change => {
     const after = change.val()
-    console.log("novo sorteio", after);
     const payload = {
         data: {
             texto: after.texto,
@@ -43,7 +42,6 @@ export const sortear = functions.database.ref('sorteios/{pushId}/sortear').onCre
         .once('value', (snapshot) => {
             const snap = snapshot.val();
             const listaKeys = Object.keys(snapshot.val());
-            console.log(listaKeys);
             listaKeys.map(key => {
                 participantes.push(snap[key]);
             });
@@ -53,9 +51,6 @@ export const sortear = functions.database.ref('sorteios/{pushId}/sortear').onCre
             }
             let keyGanhador = listaKeys[numeroSorteado];
             let ganhador = participantes[numeroSorteado];
-            console.log('Key ganhador', keyGanhador);
-            console.log('ganhador', ganhador);
-            console.log('participantes', participantes);
             return admin.database().ref(`sorteios/${context.params.pushId}/`).update({ ganhador: ganhador, pendente: false })
                 .then(_ => {
                     let message: admin.messaging.Message = {
@@ -91,15 +86,12 @@ export const getCategoriasNaoVaziasAtualizaCategoria = functions.database.ref('e
         .then(snapshot => {
             const categorias = [];
             const estabelecimentos = snapshot.val();
-            console.log(estabelecimentos);
             Object.keys(estabelecimentos).map(keyEstabelecimento => {
                 if (estabelecimentos[keyEstabelecimento].ativo) {
-
                     if (categorias.indexOf(estabelecimentos[keyEstabelecimento].categoria) < 0)
                         categorias.push(estabelecimentos[keyEstabelecimento].categoria);
                 }
             });
-            console.log('categorias keys', categorias);
             return admin.database().ref('categorias').once('value')
                 .then(snapCategorias => {
                     const categoriasAntigas = snapCategorias.val();
@@ -107,8 +99,8 @@ export const getCategoriasNaoVaziasAtualizaCategoria = functions.database.ref('e
                     Object.keys(categoriasAntigas).map(keyCategoria => {
                         if (categorias.indexOf(keyCategoria) > -1)
                             promises.push(admin.database().ref(`categorias/${keyCategoria}`).update({ estabelecimentos: true }));
-                        else 
-                            promises.push(admin.database().ref(`categorias/${keyCategoria}`).update({ estabelecimentos: false }));   
+                        else
+                            promises.push(admin.database().ref(`categorias/${keyCategoria}`).update({ estabelecimentos: false }));
                     });
                     return Promise.all(promises);
                 })
@@ -128,7 +120,7 @@ export const getEstabelecimento = functions.https.onRequest((request, response) 
         response.send(data);
     })
         .catch(err => {
-            console.log(err);
+            console.error(err);
             response.send('Um erro aconteceu');
         })
 });
