@@ -37,19 +37,20 @@ exports.onInsertSorteio = functions.database.ref('sorteios/{pushId}').onCreate(c
     });
 });
 exports.sortear = functions.database.ref('sorteios/{pushId}/sortear').onCreate((change, context) => {
-    let after = change.val();
-    let participantes = [];
+    const after = change.val();
+    const participantes = [];
     return admin.database().ref(`sorteios/${context.params.pushId}/participantes`)
         .once('value', (snapshot) => {
-        let snap = snapshot.val();
-        let listaKeys = Object.keys(snapshot.val());
+        const snap = snapshot.val();
+        const listaKeys = Object.keys(snapshot.val());
         console.log(listaKeys);
         listaKeys.map(key => {
             participantes.push(snap[key]);
         });
-        let numeroSorteado = parseInt((Math.random() * participantes.length - 1).toFixed(0));
-        if (numeroSorteado < 1)
-            numeroSorteado = 0;
+        let numeroSorteado = -1;
+        while (numeroSorteado < 0) {
+            numeroSorteado = parseInt((Math.random() * participantes.length - 1).toFixed(0));
+        }
         let keyGanhador = listaKeys[numeroSorteado];
         let ganhador = participantes[numeroSorteado];
         console.log('Key ganhador', keyGanhador);
@@ -76,6 +77,16 @@ exports.sortear = functions.database.ref('sorteios/{pushId}/sortear').onCreate((
                 console.error('FCM error', err);
             });
         });
+    })
+        .catch(err => {
+        console.error(err);
+    });
+});
+exports.getCategoriasNaoVaziasAtualizaCategoria = functions.database.ref('estabelecimentos/{pushId}/categoria').onWrite((change, context) => {
+    return admin.database().ref('estabelecimentos').once('value')
+        .then(snapshot => {
+        const estabelecimentos = snapshot.val();
+        console.log(estabelecimentos);
     })
         .catch(err => {
         console.error(err);
