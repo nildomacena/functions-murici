@@ -85,8 +85,31 @@ exports.sortear = functions.database.ref('sorteios/{pushId}/sortear').onCreate((
 exports.getCategoriasNaoVaziasAtualizaCategoria = functions.database.ref('estabelecimentos/{pushId}/categoria').onWrite((change, context) => {
     return admin.database().ref('estabelecimentos').once('value')
         .then(snapshot => {
+        const categorias = [];
         const estabelecimentos = snapshot.val();
         console.log(estabelecimentos);
+        Object.keys(estabelecimentos).map(keyEstabelecimento => {
+            if (estabelecimentos[keyEstabelecimento].ativo) {
+                if (categorias.indexOf(estabelecimentos[keyEstabelecimento].categoria) < 0)
+                    categorias.push(estabelecimentos[keyEstabelecimento].categoria);
+            }
+        });
+        console.log('categorias keys', categorias);
+        return admin.database().ref('categorias').once('value')
+            .then(snapCategorias => {
+            const categoriasAntigas = snapCategorias.val();
+            const promises = [];
+            Object.keys(categoriasAntigas).map(keyCategoria => {
+                if (categorias.indexOf(keyCategoria) > -1)
+                    promises.push(admin.database().ref(`categorias/${keyCategoria}`).update({ estabelecimentos: true }));
+                else
+                    promises.push(admin.database().ref(`categorias/${keyCategoria}`).update({ estabelecimentos: false }));
+            });
+            return Promise.all(promises);
+        })
+            .catch(err => {
+            console.error(err);
+        });
     })
         .catch(err => {
         console.error(err);
