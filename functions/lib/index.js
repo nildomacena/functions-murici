@@ -5,8 +5,10 @@ const admin = require("firebase-admin");
 admin.initializeApp();
 // Start writing Firebase Functions
 // https://firebase.google.com/docs/functions/typescript
+exports.icon = 'https://firebasestorage.googleapis.com/v0/b/tradegames-2dff6.appspot.com/o/assets%2Ffavicon.ico?alt=media&token=196ccb38-552c-4474-bc61-c8ca8627a631';
 exports.onInsertSorteio = functions.database.ref('sorteios/{pushId}').onCreate(change => {
     const after = change.val();
+    console.log('after', after);
     const payload = {
         data: {
             texto: after.texto,
@@ -15,13 +17,10 @@ exports.onInsertSorteio = functions.database.ref('sorteios/{pushId}').onCreate(c
         }
     };
     const message = {
-        topic: 'sorteios',
-        android: {
-            priority: 'high'
-        },
         notification: {
             body: payload.data.texto,
-            title: payload.data.estabelecimento
+            title: after.estabelecimentoNome,
+            icon: 'https://firebasestorage.googleapis.com/v0/b/tradegames-2dff6.appspot.com/o/assets%2Ffavicon.ico?alt=media&token=196ccb38-552c-4474-bc61-c8ca8627a631'
         },
         data: {
             motivo: 'novo-sorteio',
@@ -30,7 +29,10 @@ exports.onInsertSorteio = functions.database.ref('sorteios/{pushId}').onCreate(c
             titulo: payload.data.titulo
         }
     };
-    return admin.messaging().send(message)
+    const options = {
+        priority: 'high'
+    };
+    return admin.messaging().sendToTopic('sorteios', message, options)
         .catch(err => {
         console.error('FCM error', err);
     });
@@ -54,20 +56,20 @@ exports.sortear = functions.database.ref('sorteios/{pushId}/sortear').onCreate((
         return admin.database().ref(`sorteios/${context.params.pushId}/`).update({ ganhador: ganhador, pendente: false })
             .then(_ => {
             let message = {
-                topic: keyGanhador,
-                android: {
-                    priority: 'high'
-                },
                 notification: {
                     title: 'Parabéns! Você ganhou um sorteio!',
-                    body: 'Verifique o menu de sorteios no aplicativo Tudo em Murici e veja qual prêmio você ganhou!'
+                    body: 'Verifique o menu de sorteios no aplicativo Tudo em Murici e veja qual prêmio você ganhou!',
+                    icon: 'https://firebasestorage.googleapis.com/v0/b/tradegames-2dff6.appspot.com/o/assets%2Ffavicon.ico?alt=media&token=196ccb38-552c-4474-bc61-c8ca8627a631'
                 },
                 data: {
                     motivo: 'ganhador-sorteio',
                     idSorteio: context.params.pushId
                 }
             };
-            return admin.messaging().send(message)
+            const options = {
+                priority: 'high'
+            };
+            return admin.messaging().sendToTopic(keyGanhador, message, options)
                 .catch(err => {
                 console.error('FCM error', err);
             });
@@ -119,18 +121,45 @@ exports.AtualizaCategoriasAposCadastrarEstab = functions.database.ref('estabelec
                 .then(snapEstabelecimentos => {
                 let achou = false; //Verifica se encontrou algum estabelecimento com categoria igual ao estabelecimento que foi desativado.
                 let estabelecimentos = snapEstabelecimentos.val();
-                console.log(estabelecimento);
-                console.log(estabelecimentos);
                 Object.keys(estabelecimentos).map(key => {
                     if (estabelecimentos[key].categoria == estabelecimento.categoria && estabelecimentos[key].ativo) {
                         achou = true;
                     }
                 });
-                console.log('achou', achou);
                 return admin.database().ref(`categorias/${estabelecimento.categoria}`).update({ estabelecimentos: achou });
             });
         }
     })
+        .catch(err => {
+        console.error(err);
+    });
+});
+exports.onRecebeNotificacao = functions.database.ref('notificacoes/{pushId}').onCreate((snapshot, context) => {
+    const notificacao = snapshot.val();
+    const message = {
+        data: {
+            motivo: 'promocao',
+            estabelecimento: notificacao.estabelecimento,
+            title: notificacao.titulo,
+            body: notificacao.corpo
+        },
+        notification: {
+            body: notificacao.corpo,
+            icon: 'https://firebasestorage.googleapis.com/v0/b/tradegames-2dff6.appspot.com/o/assets%2Ffavicon.ico?alt=media&token=196ccb38-552c-4474-bc61-c8ca8627a631',
+            title: notificacao.titulo,
+        }
+    };
+    const options = {
+        priority: 'high'
+    };
+    return admin.messaging().sendToTopic('promocoes', message, options)
+        .catch(err => {
+        console.error('FCM error', err);
+    });
+});
+exports.onDeleteSorteio = functions.database.ref('sorteios/{pushId}').onDelete((snapshot, context) => {
+    const id = context.params.pushId;
+    return admin.storage().bucket(`sorteios/${id}`).delete()
         .catch(err => {
         console.error(err);
     });
