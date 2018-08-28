@@ -7,7 +7,6 @@ admin.initializeApp();
 // https://firebase.google.com/docs/functions/typescript
 exports.onInsertSorteio = functions.database.ref('sorteios/{pushId}').onCreate(change => {
     const after = change.val();
-    console.log("novo sorteio", after);
     const payload = {
         data: {
             texto: after.texto,
@@ -43,7 +42,6 @@ exports.sortear = functions.database.ref('sorteios/{pushId}/sortear').onCreate((
         .once('value', (snapshot) => {
         const snap = snapshot.val();
         const listaKeys = Object.keys(snapshot.val());
-        console.log(listaKeys);
         listaKeys.map(key => {
             participantes.push(snap[key]);
         });
@@ -53,9 +51,6 @@ exports.sortear = functions.database.ref('sorteios/{pushId}/sortear').onCreate((
         }
         let keyGanhador = listaKeys[numeroSorteado];
         let ganhador = participantes[numeroSorteado];
-        console.log('Key ganhador', keyGanhador);
-        console.log('ganhador', ganhador);
-        console.log('participantes', participantes);
         return admin.database().ref(`sorteios/${context.params.pushId}/`).update({ ganhador: ganhador, pendente: false })
             .then(_ => {
             let message = {
@@ -87,14 +82,12 @@ exports.getCategoriasNaoVaziasAtualizaCategoria = functions.database.ref('estabe
         .then(snapshot => {
         const categorias = [];
         const estabelecimentos = snapshot.val();
-        console.log(estabelecimentos);
         Object.keys(estabelecimentos).map(keyEstabelecimento => {
             if (estabelecimentos[keyEstabelecimento].ativo) {
                 if (categorias.indexOf(estabelecimentos[keyEstabelecimento].categoria) < 0)
                     categorias.push(estabelecimentos[keyEstabelecimento].categoria);
             }
         });
-        console.log('categorias keys', categorias);
         return admin.database().ref('categorias').once('value')
             .then(snapCategorias => {
             const categoriasAntigas = snapCategorias.val();
@@ -115,6 +108,33 @@ exports.getCategoriasNaoVaziasAtualizaCategoria = functions.database.ref('estabe
         console.error(err);
     });
 });
+exports.AtualizaCategoriasAposCadastrarEstab = functions.database.ref('estabelecimentos/{pushId}/ativo').onUpdate((change, context) => {
+    return admin.database().ref(`estabelecimentos/${context.params.pushId}`).once('value')
+        .then(snapshot => {
+        const estabelecimento = snapshot.val();
+        if (estabelecimento.ativo)
+            return admin.database().ref(`categorias/${estabelecimento.categoria}`).update({ estabelecimentos: true });
+        else {
+            return admin.database().ref(`estabelecimentos/`).once('value')
+                .then(snapEstabelecimentos => {
+                let achou = false; //Verifica se encontrou algum estabelecimento com categoria igual ao estabelecimento que foi desativado.
+                let estabelecimentos = snapEstabelecimentos.val();
+                console.log(estabelecimento);
+                console.log(estabelecimentos);
+                Object.keys(estabelecimentos).map(key => {
+                    if (estabelecimentos[key].categoria == estabelecimento.categoria && estabelecimentos[key].ativo) {
+                        achou = true;
+                    }
+                });
+                console.log('achou', achou);
+                return admin.database().ref(`categorias/${estabelecimento.categoria}`).update({ estabelecimentos: achou });
+            });
+        }
+    })
+        .catch(err => {
+        console.error(err);
+    });
+});
 exports.getEstabelecimento = functions.https.onRequest((request, response) => {
     const promise = admin.firestore().doc('estabelecimentos/TFl30HUUPumOZ2tMnv4f').get();
     promise.then(snapshot => {
@@ -122,7 +142,7 @@ exports.getEstabelecimento = functions.https.onRequest((request, response) => {
         response.send(data);
     })
         .catch(err => {
-        console.log(err);
+        console.error(err);
         response.send('Um erro aconteceu');
     });
 });

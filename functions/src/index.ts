@@ -113,6 +113,32 @@ export const getCategoriasNaoVaziasAtualizaCategoria = functions.database.ref('e
         })
 })
 
+export const AtualizaCategoriasAposCadastrarEstab = functions.database.ref('estabelecimentos/{pushId}/ativo').onUpdate((change, context) => {
+    return admin.database().ref(`estabelecimentos/${context.params.pushId}`).once('value')
+        .then(snapshot => {
+            const estabelecimento = snapshot.val();
+            if (estabelecimento.ativo)
+                return admin.database().ref(`categorias/${estabelecimento.categoria}`).update({ estabelecimentos: true });
+            else {
+                return admin.database().ref(`estabelecimentos/`).once('value')
+                    .then(snapEstabelecimentos => {
+                        let achou: boolean = false; //Verifica se encontrou algum estabelecimento com categoria igual ao estabelecimento que foi desativado.
+                        let estabelecimentos = snapEstabelecimentos.val();
+                        Object.keys(estabelecimentos).map(key => {
+                            if (estabelecimentos[key].categoria == estabelecimento.categoria && estabelecimentos[key].ativo) {
+                                achou = true;
+                            }
+                        });
+                        return admin.database().ref(`categorias/${estabelecimento.categoria}`).update({ estabelecimentos: achou });
+
+                    })
+            }
+        })
+        .catch(err => {
+            console.error(err);
+        })
+})
+
 export const getEstabelecimento = functions.https.onRequest((request, response) => {
     const promise = admin.firestore().doc('estabelecimentos/TFl30HUUPumOZ2tMnv4f').get();
     promise.then(snapshot => {
