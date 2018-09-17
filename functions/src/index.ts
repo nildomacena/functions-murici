@@ -6,6 +6,20 @@ admin.initializeApp();
 
 export const icon = 'https://firebasestorage.googleapis.com/v0/b/tradegames-2dff6.appspot.com/o/assets%2Ffavicon.ico?alt=media&token=196ccb38-552c-4474-bc61-c8ca8627a631';
 
+export const onInsertDestaque = functions.database.ref('destaques/{pushId}').onCreate((change,context) => {
+    return admin.database().ref(`estabelecimentos/${context.params.pushId}/destaque`).set(true)
+        .catch(err =>{ 
+            console.error(err);
+        })
+})
+
+export const onDeleteDestaque = functions.database.ref('destaques/{pushId}').onDelete((change,context) => {
+    return admin.database().ref(`estabelecimentos/${context.params.pushId}/destaque`).set(false)
+        .catch(err =>{ 
+            console.error(err);
+        })
+})
+
 export const onInsertSorteio = functions.database.ref('sorteios/{pushId}').onCreate(change => {
     const after = change.val();
     console.log('after', after);
